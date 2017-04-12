@@ -12,6 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * http://www.cnblogs.com/promise6522/archive/2012/06/05/2535530.html
+ *
  */
 
 // @author: Andrei Alexandrescu (aalexandre)
@@ -608,6 +611,8 @@ private:
     return static_cast<Category>(bytes_[lastChar] & categoryExtractMask);
   }
 
+  // Medium 字符串
+  // Large 字符串
   struct MediumLarge {
     Char * data_;
     size_t size_;
@@ -626,6 +631,10 @@ private:
     }
   };
 
+  // small 字符串
+  // sizeof(MediumLarge) = 16bytes?
+  // sizeof(MediumLarge) = 24bytes? yes, 字节对齐
+  // he he sizeof(size_t) = 8
   union {
     uint8_t bytes_[sizeof(MediumLarge)]; // For accessing the last byte.
     Char small_[sizeof(MediumLarge) / sizeof(Char)];
@@ -685,6 +694,8 @@ private:
 
 template <class Char>
 inline void fbstring_core<Char>::copySmall(const fbstring_core& rhs) {
+  // static_assert
+  // 静态断言，编译期间的断言，如果为false，编译报错
   static_assert(offsetof(MediumLarge, data_) == 0, "fbstring layout failure");
   static_assert(
       offsetof(MediumLarge, size_) == sizeof(ml_.data_),
@@ -1034,6 +1045,8 @@ private:
  * This is the basic_string replacement. For conformity,
  * basic_fbstring takes the same template parameters, plus the last
  * one which is the core.
+ *
+ * class Storage = fbstring_core<E>
  */
 #ifdef _LIBSTDCXX_FBSTRING
 template <typename E, class T, class A, class Storage>
@@ -1053,6 +1066,7 @@ class basic_fbstring {
     }
   }
 
+  // 是否是正常的实例
   bool isSane() const {
     return
       begin() <= end() &&
@@ -1061,11 +1075,14 @@ class basic_fbstring {
       size() <= max_size() &&
       capacity() <= max_size() &&
       size() <= capacity() &&
-      begin()[size()] == '\0';
+      begin()[size()] == '\0';  // 字符串总以`\0`结尾
   }
 
   struct Invariant {
+    // 禁止拷贝赋值运算符 C++11
     Invariant& operator=(const Invariant&) = delete;
+    // noexcept 不会抛出异常，如果有异常 ，直接调用std::terminate()函数来终止程序的运行
+    // explicit 阻止构造函数的隐式类型转换
     explicit Invariant(const basic_fbstring& s) noexcept : s_(s) {
       FBSTRING_ASSERT(s_.isSane());
     }
@@ -1103,6 +1120,7 @@ class basic_fbstring {
 #endif
                                 > const_reverse_iterator;
 
+  // 看到好几份代码，npos都是赋值为-1，转换为无符号整形就是最大值了。其实很有道理啊
   static constexpr size_type npos = size_type(-1);
   typedef std::true_type IsRelocatable;
 
@@ -1133,9 +1151,11 @@ public:
   basic_fbstring() noexcept : basic_fbstring(A()) {
   }
 
+  // 空字符串
   explicit basic_fbstring(const A&) noexcept {
   }
 
+  // 拷贝构造函数
   basic_fbstring(const basic_fbstring& str)
       : store_(str.store_) {
   }
@@ -2750,6 +2770,7 @@ bool operator!=(const std::string& lhs,
   return !(lhs == rhs);
 }
 
+// IMPORTANT 全特化
 #if !defined(_LIBSTDCXX_FBSTRING)
 typedef basic_fbstring<char> fbstring;
 #endif
