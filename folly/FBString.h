@@ -602,8 +602,15 @@ private:
 
   enum class Category : category_type {
     isSmall = 0,
-    isMedium = kIsLittleEndian ? 0x80 : 0x2,
-    isLarge = kIsLittleEndian ? 0x40 : 0x1,
+    // 0x12345678 最低有效位 78；最高有效位 12
+    // 小端：最低有效位在最高有效位前面 78 56 34 12
+    // 大端：最高有效位在最低有效位前面 12 34 56 78
+    // 大端小端只是字节序的排列方法，为啥在字节内也不一样，你要闹哪样？
+    // 但是嘛，1字节还有8bit，这8bit也是可以按不同顺序存储的。
+    // 下面的这种做法看着像是以每2bit为最小单元，isMedium = 0x2, isLarge = 0x1
+    // TODO(squirrel) 可以试下在gdb里面按位打印瞅瞅
+    isMedium = kIsLittleEndian ? 0x80 : 0x2,  // 1000 0000 : 0000 0010
+    isLarge = kIsLittleEndian ? 0x40 : 0x1,   // 0100 0000 : 0000 0001
   };
 
   Category category() const {
@@ -619,6 +626,7 @@ private:
     size_t capacity_;
 
     size_t capacity() const {
+      // kIsLittleEndian 小端
       return kIsLittleEndian
         ? capacity_ & capacityExtractMask
         : capacity_ >> 2;
